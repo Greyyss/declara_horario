@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "968943732987",
+    "project_id": "declarahorario",
+    "storage_bucket": "declarahorario.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:968943732987:android:1733d04b81ccc1a4f8085e",
+        "android_client_info": {
+          "package_name": "com.example.declara_horario"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDwckwKOeo6trl_9MC9OOISC4EMui9FtWg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
