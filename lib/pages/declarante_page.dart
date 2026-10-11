@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'login_page.dart';
+import 'declaracion_form_page.dart';
+import 'mis_declaraciones_page.dart';
 
 class DeclarantePage extends StatelessWidget {
   const DeclarantePage({super.key});
@@ -46,7 +48,9 @@ class DeclarantePage extends StatelessWidget {
                 size: 80,
                 color: Color(0xFF6747A5),
               ),
+
               const SizedBox(height: 20),
+
               const Text(
                 'Bienvenido a DeclaraHorario',
                 textAlign: TextAlign.center,
@@ -55,16 +59,46 @@ class DeclarantePage extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 ),
               ),
+
               const SizedBox(height: 12),
+
               const Text(
                 'Desde aquí podrás gestionar tus declaraciones de horario.',
                 textAlign: TextAlign.center,
               ),
+
               const SizedBox(height: 30),
+
+              // BOTÓN NUEVA DECLARACIÓN
               ElevatedButton.icon(
-                onPressed: null,
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          const DeclaracionFormPage(),
+                    ),
+                  );
+                },
                 icon: const Icon(Icons.add),
                 label: const Text('Nueva declaración'),
+              ),
+
+              const SizedBox(height: 15),
+
+              // BOTÓN MIS DECLARACIONES
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          const MisDeclaracionesPage(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.folder_open),
+                label: const Text('Mis declaraciones'),
               ),
             ],
           ),
