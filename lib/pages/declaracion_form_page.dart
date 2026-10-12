@@ -1,3 +1,4 @@
+import '../services/validacion_horarios_service.dart';
 import '../services/declaracion_service.dart';
 import 'horario_form.dart';
 import 'package:flutter/material.dart';
@@ -24,6 +25,8 @@ class _DeclaracionFormPageState extends State<DeclaracionFormPage> {
   final unidadController = TextEditingController();
   final periodoController = TextEditingController();
   final DeclaracionService declaracionService = DeclaracionService();
+  final ValidacionHorariosService validacionService =
+    ValidacionHorariosService();
 
   bool guardando = false;
   // Lista de nombramientos agregados
@@ -157,6 +160,157 @@ Future<void> continuar() async {
       return;
     }
   }
+  
+  // Validar traslapes dentro de cada nombramiento
+  for (final nombramiento in nombramientos) {
+    final horariosValidos =
+        validacionService.validarHorariosNombramiento(
+      nombramiento.horarios,
+    );
+
+    if (!horariosValidos) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Hay horarios traslapados en el nombramiento: '
+            '${nombramiento.lugarTrabajo}',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+  }
+
+  // Validar traslapes entre diferentes nombramientos
+  for (int i = 0; i < nombramientos.length; i++) {
+    for (int j = i + 1; j < nombramientos.length; j++) {
+      final primero = nombramientos[i];
+      final segundo = nombramientos[j];
+
+      // Comprobar si los períodos de trabajo coinciden
+      final fechasCoinciden =
+          !primero.fechaFin.isBefore(segundo.fechaInicio) &&
+          !segundo.fechaFin.isBefore(primero.fechaInicio);
+
+      if (fechasCoinciden) {
+        final horariosValidos =
+            validacionService.validarEntreNombramientos(
+          primero.horarios,
+          segundo.horarios,
+        );
+
+        if (!horariosValidos) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Hay horarios traslapados entre los nombramientos '
+                '${primero.lugarTrabajo} y ${segundo.lugarTrabajo}',
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+      }
+    }
+  }
+
+  // Validar conflictos entre nombramientos y trabajos externos
+  for (final nombramiento in nombramientos) {
+    for (final trabajo in trabajosExternos) {
+
+      // Revisar si las fechas de trabajo coinciden
+      final fechasCoinciden =
+          !nombramiento.fechaFin.isBefore(trabajo.fechaInicio) &&
+          !trabajo.fechaFin.isBefore(nombramiento.fechaInicio);
+
+      if (fechasCoinciden) {
+        final horariosValidos =
+            validacionService.validarTrabajoExterno(
+          nombramiento.horarios,
+          trabajo.horarios,
+        );
+
+        if (!horariosValidos) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Hay horarios traslapados entre '
+                '${nombramiento.lugarTrabajo} y '
+                '${trabajo.institucion}',
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+      }
+    }
+  }
+  
+  // Validar traslapes dentro de cada trabajo externo
+  for (final trabajo in trabajosExternos) {
+    final horariosValidos =
+        validacionService.validarHorariosNombramiento(
+      trabajo.horarios,
+    );
+
+    if (!horariosValidos) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Hay horarios traslapados en el trabajo externo: '
+            '${trabajo.institucion}',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+  }
+
+  // Validar las jornadas de los nombramientos
+  for (final nombramiento in nombramientos) {
+    if (!validacionService.validarJornada(nombramiento.jornada)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'La jornada del nombramiento '
+            '${nombramiento.lugarTrabajo} debe ser '
+            'mayor que 0 y menor o igual a 1.0',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+  }
+
+  // Validar las jornadas de los trabajos externos
+  for (final trabajo in trabajosExternos) {
+    if (!validacionService.validarJornada(trabajo.jornada)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'La jornada del trabajo externo '
+            '${trabajo.institucion} debe ser '
+            'mayor que 0 y menor o igual a 1.0',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+  }
+
+  // Calcular la jornada total de los nombramientos
+  final jornadaTotal = validacionService.calcularJornadaTotal(
+    nombramientos.map((n) => n.jornada).toList(),
+  );
+
+  debugPrint('Jornada total de nombramientos: $jornadaTotal');
+
 
   setState(() {
     guardando = true;
