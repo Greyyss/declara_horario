@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import 'detalle_declaracion_page.dart';
+
 class MisDeclaracionesPage extends StatelessWidget {
   const MisDeclaracionesPage({super.key});
 
@@ -13,7 +15,7 @@ class MisDeclaracionesPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Mis declaraciones'),
-        backgroundColor: Colors.deepPurple,
+        backgroundColor: const Color(0xFF6747A5),
         foregroundColor: Colors.white,
       ),
       body: usuario == null
@@ -40,13 +42,19 @@ class MisDeclaracionesPage extends StatelessWidget {
                   );
                 }
 
-                final declaraciones = snapshot.data!.docs;
+                final declaraciones = snapshot.data!.docs.toList();
 
+                // Ordenar las declaraciones de la más reciente
+                // a la más antigua.
                 declaraciones.sort((a, b) {
-                  final fechaA = a.data()['fechaCreacion'] as Timestamp?;
-                  final fechaB = b.data()['fechaCreacion'] as Timestamp?;
+                  final fechaA =
+                      a.data()['fechaCreacion'] as Timestamp?;
+                  final fechaB =
+                      b.data()['fechaCreacion'] as Timestamp?;
 
-                  if (fechaA == null || fechaB == null) return 0;
+                  if (fechaA == null || fechaB == null) {
+                    return 0;
+                  }
 
                   return fechaB.compareTo(fechaA);
                 });
@@ -63,7 +71,8 @@ class MisDeclaracionesPage extends StatelessWidget {
                   padding: const EdgeInsets.all(16),
                   itemCount: declaraciones.length,
                   itemBuilder: (context, index) {
-                    final datos = declaraciones[index].data();
+                    final declaracion = declaraciones[index];
+                    final datos = declaracion.data();
 
                     final nombre =
                         datos['nombreFuncionario'] ?? 'Sin nombre';
@@ -83,20 +92,105 @@ class MisDeclaracionesPage extends StatelessWidget {
                           '${fecha.toDate().month}/'
                           '${fecha.toDate().year}';
 
+                    // Color según el estado de la declaración.
+                    Color colorEstado = Colors.grey;
+
+                    if (estado == 'BORRADOR') {
+                      colorEstado = Colors.orange;
+                    } else if (estado == 'ENVIADA') {
+                      colorEstado = Colors.blue;
+                    } else if (estado == 'APROBADA') {
+                      colorEstado = Colors.green;
+                    } else if (estado == 'RECHAZADA') {
+                      colorEstado = Colors.red;
+                    }
+
                     return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      child: ListTile(
-                        leading: const Icon(
-                          Icons.description,
-                          color: Colors.deepPurple,
+                      margin: const EdgeInsets.only(bottom: 14),
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.description,
+                                  color: Color(0xFF6747A5),
+                                  size: 30,
+                                ),
+
+                                const SizedBox(width: 12),
+
+                                Expanded(
+                                  child: Text(
+                                    nombre.toString(),
+                                    style: const TextStyle(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                            const SizedBox(height: 12),
+
+                            Text('Período: $periodo'),
+                            Text('Fecha: $fechaTexto'),
+
+                            const SizedBox(height: 10),
+
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: colorEstado.withValues(
+                                  alpha: 0.12,
+                                ),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                estado.toString(),
+                                style: TextStyle(
+                                  color: colorEstado,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(height: 14),
+
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          DetalleDeclaracionPage(
+                                        declaracionId: declaracion.id,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(
+                                  Icons.visibility,
+                                ),
+                                label: const Text(
+                                  'Ver detalle',
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        title: Text(nombre),
-                        subtitle: Text(
-                          'Período: $periodo\n'
-                          'Fecha: $fechaTexto\n'
-                          'Estado: $estado',
-                        ),
-                        isThreeLine: true,
                       ),
                     );
                   },

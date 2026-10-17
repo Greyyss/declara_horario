@@ -1,17 +1,95 @@
 
 import 'package:flutter/material.dart';
+
 import '../services/auth_service.dart';
+import '../services/websocket_service.dart';
 import 'login_page.dart';
 import 'declaracion_form_page.dart';
 import 'mis_declaraciones_page.dart';
 
-class DeclarantePage extends StatelessWidget {
+class DeclarantePage extends StatefulWidget {
   const DeclarantePage({super.key});
 
-  Future<void> cerrarSesion(BuildContext context) async {
+  @override
+  State<DeclarantePage> createState() => _DeclarantePageState();
+}
+
+class _DeclarantePageState extends State<DeclarantePage> {
+  final WebSocketService webSocketService = WebSocketService();
+
+  bool conectado = false;
+
+  @override
+  void initState() {
+    super.initState();
+    conectarWebSocket();
+  }
+
+  void conectarWebSocket() {
+    webSocketService.conectar(
+      onNotificacion: (titulo, mensaje) {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: const Color(0xFF6747A5),
+            duration: const Duration(seconds: 5),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  titulo,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  mensaje,
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    // La conexión se inicia automáticamente al abrir el panel.
+    // El estado real se comprueba al enviar la prueba.
+  }
+
+  void probarWebSocket() {
+    if (webSocketService.socket?.connected == true) {
+      setState(() {
+        conectado = true;
+      });
+
+      webSocketService.probarNotificacion();
+    } else {
+      setState(() {
+        conectado = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No hay conexión con el servidor WebSocket.',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> cerrarSesion() async {
+    webSocketService.desconectar();
+
     await AuthService().cerrarSesion();
 
-    if (!context.mounted) return;
+    if (!mounted) return;
 
     Navigator.pushAndRemoveUntil(
       context,
@@ -23,6 +101,12 @@ class DeclarantePage extends StatelessWidget {
   }
 
   @override
+  void dispose() {
+    webSocketService.desconectar();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -31,14 +115,14 @@ class DeclarantePage extends StatelessWidget {
         foregroundColor: Colors.white,
         actions: [
           IconButton(
-            onPressed: () => cerrarSesion(context),
+            onPressed: cerrarSesion,
             icon: const Icon(Icons.logout),
             tooltip: 'Cerrar sesión',
           ),
         ],
       ),
       body: Center(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -69,36 +153,54 @@ class DeclarantePage extends StatelessWidget {
 
               const SizedBox(height: 30),
 
-              // BOTÓN NUEVA DECLARACIÓN
-              ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          const DeclaracionFormPage(),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.add),
-                label: const Text('Nueva declaración'),
+              // BOTÓN PARA PROBAR WEBSOCKET
+              SizedBox(
+                width: 280,
+                child: ElevatedButton.icon(
+                  onPressed: probarWebSocket,
+                  icon: const Icon(Icons.notifications_active),
+                  label: const Text('Probar notificación WebSocket'),
+                ),
               ),
 
-              const SizedBox(height: 15),
+              const SizedBox(height: 18),
+
+              // BOTÓN NUEVA DECLARACIÓN
+              SizedBox(
+                width: 280,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            const DeclaracionFormPage(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.add),
+                  label: const Text('Nueva declaración'),
+                ),
+              ),
+
+              const SizedBox(height: 18),
 
               // BOTÓN MIS DECLARACIONES
-              ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          const MisDeclaracionesPage(),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.folder_open),
-                label: const Text('Mis declaraciones'),
+              SizedBox(
+                width: 280,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            const MisDeclaracionesPage(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.folder_open),
+                  label: const Text('Mis declaraciones'),
+                ),
               ),
             ],
           ),

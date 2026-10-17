@@ -1,0 +1,178 @@
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function autenticado() {
+      return request.auth != null;
+    }
+
+    function perfil(uid) {
+      return get(
+        /databases/$(database)/documents/users/$(uid)
+      ).data;
+    }
+
+    function miRol() {
+      return perfil(request.auth.uid).rol;
+    }
+
+    function esPropietario(datos) {
+      return autenticado()
+        && datos.usuarioId == request.auth.uid;
+    }
+
+    function puedeLeer(datos) {
+      return autenticado()
+        && (
+          esPropietario(datos)
+          || (
+            miRol() == 'superior'
+            && datos.get('superiorId', '') == request.auth.uid
+          )
+          || miRol() == 'rrhh'
+          || miRol() == 'admin'
+        );
+    }
+
+    function rutaDeclaracion(id) {
+      return /databases/$(database)/documents/declarations/$(id);
+    }
+
+    function declaracionFinal(id) {
+      return getAfter(rutaDeclaracion(id)).data;
+    }
+
+    function propietarioFinal(id) {
+      return autenticado()
+        && declaracionFinal(id).usuarioId == request.auth.uid;
+    }
+
+    function puedeLeerHijo(id) {
+      return autenticado()
+        && puedeLeer(get(rutaDeclaracion(id)).data);
+    }
+
+    match /users/{userId} {
+
+      allow get: if autenticado()
+        && (
+          request.auth.uid == userId
+          || miRol() == 'admin'
+          || (
+            miRol() == 'declarante'
+            && resource.data.rol == 'superior'
+            && perfil(request.auth.uid).get('superiorId', '') == userId
+          )
+        );
+
+      allow list: if false;
+
+      allow create, update, delete: if false;
+    }
+
+    match /declarations/{declarationId} {
+
+      allow get, list: if autenticado()
+        && puedeLeer(resource.data);
+
+      allow create: if autenticado()
+        && miRol() == 'declarante'
+        && request.resource.data.usuarioId == request.auth.uid
+        && request.resource.data.estado == 'BORRADOR'
+        && request.resource.data.versionActual == 1
+        && request.resource.data.get('superiorId', '') ==
+          perfil(request.auth.uid).get('superiorId', '');
+
+      allow update: if autenticado()
+        && esPropietario(resource.data)
+        && resource.data.estado == 'BORRADOR'
+        && request.resource.data.estado == 'VALIDADA'
+        && request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly(['estado', 'fechaValidacion'])
+        && request.resource.data.fechaValidacion == request.time;
+
+      allow delete: if false;
+
+      match /appointments/{appointmentId} {
+
+        allow read: if puedeLeerHijo(declarationId);
+
+        allow create: if propietarioFinal(declarationId)
+          && declaracionFinal(declarationId).estado == 'BORRADOR';
+
+        allow update, delete: if false;
+      }
+
+      match /externalJobs/{jobId} {
+
+        allow read: if puedeLeerHijo(declarationId);
+
+        allow create: if propietarioFinal(declarationId)
+          && declaracionFinal(declarationId).estado == 'BORRADOR';
+
+        allow update, delete: if false;
+      }
+
+      match /versions/{versionId} {
+
+        allow read: if puedeLeerHijo(declarationId);
+
+        allow create: if propietarioFinal(declarationId)
+          && declaracionFinal(declarationId).estado == 'BORRADOR'
+          && versionId == '1'
+          && request.resource.data.numero == 1
+          && request.resource.data.firmada == false;
+
+        allow update, delete: if false;
+
+        match /appointments/{appointmentId} {
+
+          allow read: if puedeLeerHijo(declarationId);
+
+          allow create: if propietarioFinal(declarationId)
+            && declaracionFinal(declarationId).estado == 'BORRADOR';
+
+          allow update, delete: if false;
+        }
+
+        match /externalJobs/{jobId} {
+
+          allow read: if puedeLeerHijo(declarationId);
+
+          allow create: if propietarioFinal(declarationId)
+            && declaracionFinal(declarationId).estado == 'BORRADOR';
+
+          allow update, delete: if false;
+        }
+      }
+
+      match /events/{eventId} {
+
+        allow read: if puedeLeerHijo(declarationId);
+
+        allow create: if propietarioFinal(declarationId)
+          && request.resource.data.usuarioId == request.auth.uid
+          && request.resource.data.fechaHora == request.time
+          && (
+            (
+              request.resource.data.evento == 'DECLARACION_CREADA'
+              && request.resource.data.estadoNuevo == 'BORRADOR'
+              && declaracionFinal(declarationId).estado == 'BORRADOR'
+            )
+            ||
+            (
+              request.resource.data.evento == 'DECLARACION_VALIDADA'
+              && request.resource.data.estadoAnterior == 'BORRADOR'
+              && request.resource.data.estadoNuevo == 'VALIDADA'
+              && declaracionFinal(declarationId).estado == 'VALIDADA'
+            )
+          );
+
+        allow update, delete: if false;
+      }
+    }
+  }
+}
